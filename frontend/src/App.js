@@ -39,7 +39,6 @@ function App() {
                     <Navigation />
                     <main className="main-content">
                         <Switch>
-                            {!token && <Redirect from="/" to="/auth" exact />}
                             {/* {!token && (
                                 <Redirect from="/events" to="/auth" exact />
                             )} */}
@@ -57,6 +56,7 @@ function App() {
                             {token && (
                                 <Route path="/bookings" component={Bookings} />
                             )}
+                            {!token && <Redirect to="/auth" exact />}
                         </Switch>
                     </main>
                 </AuthContext.Provider>
