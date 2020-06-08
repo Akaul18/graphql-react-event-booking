@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useRef, useContext } from 'react'
 import './AuthPage.css'
+import { AuthContext } from '../context/auth-context'
 
 const AuthPage = () => {
-    const [isLoginbtnText, setIsLoginBtnText] = useState(true)
+    const context = useContext(AuthContext)
+    const [isLoginbtnText, setIsLoginBtnText] = useState(false)
     const emailEl = useRef('')
     const passwordEl = useRef('')
 
@@ -56,7 +58,14 @@ const AuthPage = () => {
                 return res.json()
             })
             .then((resData) => {
-                console.log(resData)
+                // console.log(resData.data)
+                if (resData.data.login.token) {
+                    context.login(
+                        resData.data.login.token,
+                        resData.data.login.userId,
+                        resData.data.login.tokenExpiration
+                    )
+                }
             })
             .catch((err) => {
                 console.log(err)
@@ -78,11 +87,9 @@ const AuthPage = () => {
                 <input type="password" id="password" ref={passwordEl} />
             </div>
             <div className="form-actions">
-                <button type="submit">
-                    {!isLoginbtnText ? 'Signup' : 'Login'}
-                </button>
+                <button type="submit">Submit</button>
                 <button type="button" onClick={switchModeHandler}>
-                    Switch to {isLoginbtnText ? 'Signup' : 'Login'}
+                    Switch to {!isLoginbtnText ? 'Signup' : 'Login'}
                 </button>
             </div>
         </form>

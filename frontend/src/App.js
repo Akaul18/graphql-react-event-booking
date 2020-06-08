@@ -1,4 +1,4 @@
-import React, { Fragment } from 'react'
+import React, { useState, Fragment } from 'react'
 import {
     BrowserRouter as Router,
     Route,
@@ -10,20 +10,56 @@ import AuthPage from './pages/AuthPage'
 import Bookings from './pages/Bookings'
 import Events from './pages/Events'
 import Navigation from './components/Navigation/Navigation'
+import { AuthContext } from './context/auth-context'
 
 function App() {
+    const [token, setToken] = useState(null)
+    const [userId, setUserId] = useState(null)
+    const login = (token, userId) => {
+        setToken(token)
+        setUserId(userId)
+    }
+
+    const logout = () => {
+        setToken(null)
+        setUserId(null)
+    }
+
     return (
         <Router>
             <Fragment>
-                <Navigation />
-                <main className="main-content">
-                    <Switch>
-                        <Redirect from="/" to="/auth" exact />
-                        <Route path="/auth" component={AuthPage} />
-                        <Route path="/events" component={Events} />
-                        <Route path="/bookings" component={Bookings} />
-                    </Switch>
-                </main>
+                <AuthContext.Provider
+                    value={{
+                        token: token,
+                        userId: userId,
+                        login: login,
+                        logout: logout,
+                    }}
+                >
+                    <Navigation />
+                    <main className="main-content">
+                        <Switch>
+                            {!token && <Redirect from="/" to="/auth" exact />}
+                            {/* {!token && (
+                                <Redirect from="/events" to="/auth" exact />
+                            )} */}
+                            {!token && (
+                                <Redirect from="/bookings" to="/auth" exact />
+                            )}
+                            {token && <Redirect from="/" to="/events" exact />}
+                            {token && (
+                                <Redirect from="/auth" to="/events" exact />
+                            )}
+                            {!token && (
+                                <Route path="/auth" component={AuthPage} />
+                            )}
+                            <Route path="/events" component={Events} />
+                            {token && (
+                                <Route path="/bookings" component={Bookings} />
+                            )}
+                        </Switch>
+                    </main>
+                </AuthContext.Provider>
             </Fragment>
         </Router>
     )
