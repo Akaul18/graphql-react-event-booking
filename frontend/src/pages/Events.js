@@ -3,16 +3,19 @@ import './Events.css'
 import Modal from '../components/Modal/Modal'
 import Backdrop from '../components/Backdrop/Backdrop'
 import { AuthContext } from '../context/auth-context'
+import EventList from '../components/Events/EventList/EventList'
 
 const Events = () => {
     const context = useContext(AuthContext)
+
+    const [creating, setCreating] = useState(false)
+    const [events, setEvents] = useState([])
+    const [isLoading, setIsLoading] = useState(false)
 
     useEffect(() => {
         fetchEvents() // eslint-disable-next-line
     }, [])
 
-    const [creating, setCreating] = useState(false)
-    const [events, setEvents] = useState([])
     const titleElRef = useRef('')
     const descElRef = useRef('')
     const priceElRef = useRef('')
@@ -26,14 +29,6 @@ const Events = () => {
         setCreating(false)
     }
 
-    const eventList = events.map((event) => {
-        return (
-            <li key={event._id} className="events__list-item">
-                {event.title}
-            </li>
-        )
-    })
-
     const fetchEvents = () => {
         let requestBody = {
             query: `
@@ -46,13 +41,12 @@ const Events = () => {
                             date
                             creator{
                                 _id
-                                email
                             }
                         }
                     }
                 `,
         }
-
+        setIsLoading(true)
         fetch('http://localhost:4000/graphql', {
             method: 'POST',
             body: JSON.stringify(requestBody),
@@ -68,11 +62,13 @@ const Events = () => {
                 return res.json()
             })
             .then((resData) => {
-                const events = resData.data.events
-                setEvents(events)
+                const newEvents = resData.data.events
+                setEvents(newEvents)
+                setIsLoading(false)
             })
             .catch((err) => {
                 console.log(err)
+                setIsLoading(false)
             })
     }
 
@@ -92,9 +88,7 @@ const Events = () => {
             return
         }
 
-        const event = { title, desc, price, date }
-        console.log(event)
-
+        // const event = { title, desc, price, date }
         let requestBody = {
             query: `
                     mutation {
@@ -112,7 +106,7 @@ const Events = () => {
                     }
                 `,
         }
-
+        setIsLoading(true)
         fetch('http://localhost:4000/graphql', {
             method: 'POST',
             body: JSON.stringify(requestBody),
@@ -129,10 +123,27 @@ const Events = () => {
             })
             .then((resData) => {
                 // console.log(resData.data)
-                fetchEvents()
+                // fetchEvents()
+                // console.log(events)
+                setEvents((prevState) => {
+                    const updatedEvents = [...prevState]
+                    updatedEvents.push({
+                        _id: resData.data.createEvent._id,
+                        title: resData.data.createEvent.title,
+                        desc: resData.data.createEvent.desc,
+                        price: resData.data.createEvent.price,
+                        date: resData.data.createEvent.date,
+                        creator: {
+                            _id: context.userId,
+                        },
+                    })
+                    setIsLoading(false)
+                    return updatedEvents
+                })
             })
             .catch((err) => {
                 console.log(err)
+                setIsLoading(false)
             })
     }
 
@@ -184,7 +195,11 @@ const Events = () => {
                     </button>
                 </div>
             )}
-            <ul className="events__list">{eventList}</ul>
+            {isLoading ? (
+                <p>Loading....</p>
+            ) : (
+                <EventList authUserId={context.userId} events={events} />
+            )}
         </React.Fragment>
     )
 }
