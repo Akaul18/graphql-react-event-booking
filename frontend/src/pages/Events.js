@@ -4,6 +4,7 @@ import Modal from '../components/Modal/Modal'
 import Backdrop from '../components/Backdrop/Backdrop'
 import { AuthContext } from '../context/auth-context'
 import EventList from '../components/Events/EventList/EventList'
+import Spinner from '../components/Spinner/Spinner'
 
 const Events = () => {
     const context = useContext(AuthContext)
@@ -11,9 +12,15 @@ const Events = () => {
     const [creating, setCreating] = useState(false)
     const [events, setEvents] = useState([])
     const [isLoading, setIsLoading] = useState(false)
+    const [selectedEvent, setSelectedEvent] = useState(null)
+    const isMountedRef = useRef(null)
 
     useEffect(() => {
+        isMountedRef.current = true
         fetchEvents() // eslint-disable-next-line
+        return () => {
+            isMountedRef.current = false
+        }
     }, [])
 
     const titleElRef = useRef('')
@@ -27,21 +34,27 @@ const Events = () => {
 
     const modalCancelHandler = () => {
         setCreating(false)
+        setSelectedEvent(null)
     }
 
-    const fetchEvents = () => {
+    const showDetailHandler = (eventId) => {
+        setSelectedEvent((prevState) => {
+            return events.find((event) => event._id === eventId)
+        })
+    }
+
+    const bookEventHandler = () => {
+        if (!context.token) {
+            setSelectedEvent(null)
+            return
+        }
         let requestBody = {
             query: `
-                    query {
-                        events {
+                    mutation {
+                        bookEvent(eventId:"${selectedEvent._id}") {
                             _id
-                            title
-                            desc
-                            price
-                            date
-                            creator{
-                                _id
-                            }
+                            createdAt
+                            updatedAt
                         }
                     }
                 `,
@@ -62,13 +75,62 @@ const Events = () => {
                 return res.json()
             })
             .then((resData) => {
-                const newEvents = resData.data.events
-                setEvents(newEvents)
+                console.log(resData)
+
+                setSelectedEvent(null)
                 setIsLoading(false)
             })
             .catch((err) => {
                 console.log(err)
                 setIsLoading(false)
+            })
+    }
+
+    const fetchEvents = () => {
+        let requestBody = {
+            query: `
+                    query {
+                        events {
+                            _id
+                            title
+                            desc
+                            price
+                            date
+                            creator{
+                                _id
+                            }
+                        }
+                    }
+                `,
+        }
+        if (isMountedRef.current) {
+            setIsLoading(true)
+        }
+        fetch('http://localhost:4000/graphql', {
+            method: 'POST',
+            body: JSON.stringify(requestBody),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        })
+            .then((res) => {
+                if (res.status !== 200) {
+                    throw new Error('Failed')
+                }
+                return res.json()
+            })
+            .then((resData) => {
+                const newEvents = resData.data.events
+                if (isMountedRef.current) {
+                    setEvents(newEvents)
+                    setIsLoading(false)
+                }
+            })
+            .catch((err) => {
+                console.log(err)
+                if (isMountedRef.current) {
+                    setIsLoading(false)
+                }
             })
     }
 
@@ -125,6 +187,7 @@ const Events = () => {
                 // console.log(resData.data)
                 // fetchEvents()
                 // console.log(events)
+
                 setEvents((prevState) => {
                     const updatedEvents = [...prevState]
                     updatedEvents.push({
@@ -143,13 +206,14 @@ const Events = () => {
             })
             .catch((err) => {
                 console.log(err)
+
                 setIsLoading(false)
             })
     }
 
     return (
         <React.Fragment>
-            {creating && <Backdrop />}
+            {(creating || selectedEvent) && <Backdrop />}
             {creating && (
                 <Modal
                     title="Add Event"
@@ -157,6 +221,7 @@ const Events = () => {
                     canConfirm
                     onCancel={modalCancelHandler}
                     onConfirm={modalConfirmHandler}
+                    confirmText="Confirm"
                 >
                     <p>Modal Content</p>
                     <form>
@@ -187,6 +252,24 @@ const Events = () => {
                     </form>
                 </Modal>
             )}
+            {selectedEvent && (
+                <Modal
+                    title={selectedEvent.title}
+                    canCancel
+                    canConfirm
+                    onCancel={modalCancelHandler}
+                    onConfirm={bookEventHandler}
+                    confirmText={context.token ? 'Book' : 'Confirm'}
+                >
+                    <p>Modal Content</p>
+                    <h1>{selectedEvent.title}</h1>
+                    <h2>
+                        ${selectedEvent.price} -{' '}
+                        {new Date(selectedEvent.date).toLocaleDateString()}
+                    </h2>
+                    <p>{selectedEvent.desc}</p>
+                </Modal>
+            )}
             {context.token && (
                 <div className="events-control">
                     <p>Share your own Events!</p>
@@ -196,9 +279,13 @@ const Events = () => {
                 </div>
             )}
             {isLoading ? (
-                <p>Loading....</p>
+                <Spinner />
             ) : (
-                <EventList authUserId={context.userId} events={events} />
+                <EventList
+                    authUserId={context.userId}
+                    events={events}
+                    onViewDetail={showDetailHandler}
+                />
             )}
         </React.Fragment>
     )
