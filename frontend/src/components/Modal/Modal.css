@@ -28,6 +28,15 @@
     padding: 1rem;
 }
 
+.modal__actions .btn {
+    background: #5101d1;
+    color: white;
+}
+.modal__actions .btn:first-of-type {
+    margin-right: 0.5rem;
+    padding: 0.5rem;
+}
+
 @media (min-width: 768px) {
     .modal {
         width: 30rem;
